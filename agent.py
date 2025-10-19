@@ -41,10 +41,10 @@ if not ASI_ONE_API_KEY:
 # Initialize agent
 agent = Agent(
     name="cdp_agent_metrics_generator",
-    port=8081,
+    port=8080,
     seed="cdp agent metrics generator seed phrase",
     mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
-    endpoint=["http://localhost:8081/submit"]
+    endpoint=["http://localhost:8080/submit"]
 )
 
 # REST API Models
