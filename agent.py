@@ -379,51 +379,176 @@ def generate_summary_insights(conversation_data: Dict[str, Any], aggregate_score
 
 
 def generate_improvement_areas(capability: Dict, efficiency: Dict, reliability: Dict,
-                               interaction: Dict, defi: Dict) -> List[Dict[str, str]]:
-    """Identify areas for improvement with suggestions."""
-    improvements = []
+                               interaction: Dict, defi: Dict, conversation_data: Dict[str, Any], 
+                               llm: LLM) -> List[Dict[str, str]]:
+    """Use LLM to dynamically analyze metrics and conversation data to generate improvement areas."""
     
-    # Check DeFi coverage
-    if defi['defi_action_success_rate'] < 50:
-        improvements.append({
-            "area": "DeFi Coverage",
-            "scope": "Limited to basic operations; no complex DeFi interactions",
-            "suggestion": "Add test scenarios for swaps, approvals, and multi-step DeFi operations"
-        })
+    # Prepare comprehensive context for LLM analysis
+    messages = conversation_data.get('messages', [])
+    transactions = conversation_data.get('transactions', [])
+    personality_name = conversation_data.get('personality_name', 'Unknown')
     
-    # Check error recovery
-    if reliability['recovery_rate_percent'] < 70:
-        improvements.append({
-            "area": "Adaptive Reasoning",
-            "scope": "Fails gracefully but rarely suggests alternatives",
-            "suggestion": "Implement fallback suggestions and context-based error correction"
-        })
+    # Format conversation for analysis
+    conversation_summary = []
+    for msg in messages[:10]:  # First 10 messages for context
+        role = msg.get('role', 'unknown')
+        content = msg.get('content', '')[:200]  # Truncate long messages
+        conversation_summary.append(f"{role.upper()}: {content}")
     
-    # Check gas efficiency
-    if efficiency['gas_efficiency_percent'] < 80:
-        improvements.append({
-            "area": "Efficiency Analysis",
-            "scope": "Gas usage could be optimized",
-            "suggestion": "Add gas optimization strategies and self-assessment of gas usage"
-        })
+    conversation_text = "\n".join(conversation_summary)
     
-    # Check tool usage
-    if capability['action_success_rate'] < 80:
-        improvements.append({
-            "area": "Action Success Rate",
-            "scope": "Some operations failing",
-            "suggestion": "Improve validation and pre-flight checks before executing operations"
-        })
+    # Format transaction data
+    transaction_summary = []
+    for tx in transactions:
+        tx_hash = tx.get('transaction_hash', 'N/A')
+        analysis = tx.get('analysis', '')[:150]
+        transaction_summary.append(f"TX {tx_hash[:10]}...: {analysis}")
     
-    # Check network handling
-    if capability['network_handling_score'] < 85:
-        improvements.append({
-            "area": "Cross-Network Awareness",
-            "scope": "Limited network adaptation",
-            "suggestion": "Add network-contextual decision-making and automatic fallback routing"
-        })
+    transaction_text = "\n".join(transaction_summary) if transaction_summary else "No transactions recorded"
     
-    return improvements
+    # Create comprehensive prompt for LLM
+    prompt = f"""You are an expert AI agent performance analyst. Analyze the following CDP blockchain agent test results and generate 5-7 specific, actionable improvement areas.
+
+AGENT PERFORMANCE METRICS:
+
+**Capability Metrics:**
+- Action Success Rate: {capability['action_success_rate']}%
+- Action Types: {', '.join(capability['action_type_coverage'])}
+- Contract Interaction Accuracy: {capability['contract_interaction_accuracy']}%
+- State Verification: {capability['state_verification_accuracy']}%
+- Error Recovery: {capability['adaptive_error_recovery']}%
+- Network Handling: {capability['network_handling_score']}%
+
+**Efficiency Metrics:**
+- Avg Execution Latency: {efficiency['avg_execution_latency_ms']} ms
+- Avg Gas Used: {efficiency['avg_gas_used']} units
+- Gas Efficiency: {efficiency['gas_efficiency_percent']}%
+- Failure Rate: {efficiency['failure_rate_percent']}%
+
+**Reliability Metrics:**
+- Recovery Rate: {reliability['recovery_rate_percent']}%
+- Tool Reliability: {reliability['tool_reliability_percent']}%
+- Execution Determinism: {reliability['execution_determinism_percent']}%
+- Network Adaptability: {reliability['network_adaptability_score']}%
+
+**Interaction Metrics:**
+- Response Latency: {interaction['response_latency_ms']} ms
+- Instruction Compliance: {interaction['instruction_compliance_percent']}%
+- Transparency: {interaction['transparency_score_percent']}%
+- Personality Adherence: {interaction['personality_adherence_percent']}%
+- Proactive Initiatives: {interaction['proactive_initiative_count']}
+
+**DeFi Reasoning Metrics:**
+- DeFi Action Success: {defi['defi_action_success_rate']}%
+- Protocol Selection: {defi['protocol_selection_accuracy']}%
+- Approval Safety: {defi['approval_safety_score']}%
+- Sequencing Logic: {defi['sequencing_logic_accuracy']}%
+- Slippage Awareness: {defi['slippage_awareness']}%
+
+**Personality Tested:** {personality_name}
+
+**Conversation Sample:**
+{conversation_text}
+
+**Transaction Analysis:**
+{transaction_text}
+
+**TASK:** Based on this comprehensive data, generate 5-7 specific improvement areas. Consider:
+1. Actual weaknesses shown in the metrics (scores < 90%)
+2. Missing capabilities (action types not demonstrated)
+3. Inefficiencies in the conversation flow
+4. DeFi reasoning gaps
+5. Performance bottlenecks
+6. Areas where the agent could be more proactive
+7. Edge cases not handled well
+
+For each improvement area, provide:
+- area: Short title (3-6 words)
+- scope: What's currently happening or missing (1 sentence)
+- suggestion: Specific, actionable improvement (1-2 sentences)
+- priority: One of [CRITICAL, HIGH, MEDIUM, LOW]
+
+Priority Guidelines:
+- CRITICAL: Blocks core functionality (success rate < 70%, critical failures)
+- HIGH: Significantly impacts user experience (scores 70-85%)
+- MEDIUM: Room for improvement (scores 85-95%)
+- LOW: Optimization opportunities (scores > 95%)
+
+Return ONLY valid JSON in this exact format:
+[
+  {{
+    "area": "Area Title",
+    "scope": "Current situation or gap",
+    "suggestion": "Specific actionable improvement",
+    "priority": "HIGH"
+  }}
+]
+
+CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additional text."""
+
+    try:
+        print(f"🤖 Generating AI-powered improvement areas...")
+        response = llm.create_completion(prompt, temperature=0.4)
+        
+        # Clean the response
+        cleaned_response = clean_json_response(response)
+        
+        # Parse JSON
+        improvements = json.loads(cleaned_response)
+        
+        if not isinstance(improvements, list):
+            raise ValueError("Response is not a list")
+        
+        # Validate structure
+        valid_improvements = []
+        for imp in improvements:
+            if all(key in imp for key in ['area', 'scope', 'suggestion', 'priority']):
+                valid_improvements.append(imp)
+        
+        if not valid_improvements:
+            raise ValueError("No valid improvements found")
+        
+        # Sort by priority
+        priority_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+        valid_improvements.sort(key=lambda x: priority_order.get(x.get('priority', 'LOW'), 3))
+        
+        print(f"✅ Generated {len(valid_improvements)} AI-powered improvement areas")
+        return valid_improvements
+        
+    except Exception as e:
+        print(f"⚠️  Error generating AI improvements: {e}")
+        print(f"   Falling back to basic analysis")
+        
+        # Fallback: Generate basic improvements based on lowest scores
+        fallback_improvements = []
+        
+        # Find weakest areas
+        all_scores = {
+            "DeFi Coverage": defi['defi_action_success_rate'],
+            "Error Recovery": reliability['recovery_rate_percent'],
+            "Gas Efficiency": efficiency['gas_efficiency_percent'],
+            "Action Success Rate": capability['action_success_rate'],
+            "Protocol Knowledge": (defi['protocol_selection_accuracy'] + defi['slippage_awareness']) / 2,
+            "Response Time": 100 - min(100, (interaction['response_latency_ms'] / 50)),
+        }
+        
+        # Sort by score (lowest first)
+        sorted_areas = sorted(all_scores.items(), key=lambda x: x[1])
+        
+        for area, score in sorted_areas[:5]:
+            if score < 90:
+                priority = "HIGH" if score < 75 else "MEDIUM"
+            else:
+                priority = "LOW"
+                
+            fallback_improvements.append({
+                "area": f"Improve {area}",
+                "scope": f"Current score: {score:.1f}% - Room for optimization",
+                "suggestion": f"Analyze conversation patterns and optimize {area.lower()} through targeted improvements",
+                "priority": priority
+            })
+        
+        return fallback_improvements
 
 
 def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -461,13 +586,15 @@ def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[st
     print("📝 Generating summary insights...")
     summary = generate_summary_insights(conversation_data, aggregate_scores)
     
-    print("🔧 Identifying improvement areas...")
+    print("🔧 Identifying improvement areas with AI analysis...")
     improvements = generate_improvement_areas(
         capability_metrics,
         efficiency_metrics,
         reliability_metrics,
         interaction_metrics,
-        defi_metrics
+        defi_metrics,
+        conversation_data,
+        llm
     )
     
     metrics = {
@@ -589,11 +716,20 @@ def display_metrics_in_terminal(metrics: Dict[str, Any]):
     
     if metrics['improvement_areas']:
         print(f"{'='*80}")
-        print(f"🔧 IMPROVEMENT AREAS")
+        print(f"🔧 IMPROVEMENT AREAS (Sorted by Priority)")
         print(f"{'='*80}\n")
         
+        priority_icons = {
+            "CRITICAL": "🚨",
+            "HIGH": "⚠️",
+            "MEDIUM": "📌",
+            "LOW": "💡"
+        }
+        
         for i, area in enumerate(metrics['improvement_areas'], 1):
-            print(f"  {i}. {area['area']}")
+            priority = area.get('priority', 'LOW')
+            icon = priority_icons.get(priority, '📋')
+            print(f"  {i}. {icon} {area['area']} [{priority}]")
             print(f"     Scope: {area['scope']}")
             print(f"     Suggestion: {area['suggestion']}\n")
     
@@ -749,4 +885,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n🛑 Shutting down CDP Agent Metrics Generator...")
         print("✅ Agent stopped.")
-
