@@ -1,7 +1,7 @@
 """
-CDP Agent Metrics Generation Agent
+FireGlobe Agent Metrics Generation Agent
 
-This agent generates comprehensive performance metrics for CDP Agent testing
+This agent generates comprehensive performance metrics for FireGlobe Agent testing
 using data from the Knowledge Graph, following the metrics specification in metrics.md
 """
 
@@ -40,9 +40,9 @@ if not ASI_ONE_API_KEY:
 
 # Initialize agent
 agent = Agent(
-    name="cdp_agent_metrics_generator",
+    name="fireglobe_agent_metrics_generator",
     port=8080,
-    seed="cdp agent metrics generator seed phrase",
+    seed="fireglobe agent metrics generator seed phrase",
     mailbox=f"{AGENTVERSE_API_KEY}" if AGENTVERSE_API_KEY else None,
     endpoint=["http://localhost:8080/submit"]
 )
@@ -750,7 +750,7 @@ last_conversation_id = None
 # Startup Handler
 @agent.on_event("startup")
 async def startup_handler(ctx: Context):
-    ctx.logger.info(f"CDP Agent Metrics Generator started with address: {ctx.agent.address}")
+    ctx.logger.info(f"FireGlobe Agent Metrics Generator started with address: {ctx.agent.address}")
     ctx.logger.info("🎯 Ready to generate comprehensive agent performance metrics!")
     ctx.logger.info(f"📡 Connected to backend: {BACKEND_URL}")
     ctx.logger.info("🧠 Powered by ASI:One AI and MeTTa Knowledge Graph")
@@ -860,7 +860,7 @@ async def handle_last_metrics(ctx: Context) -> LastMetricsResponse:
 
 
 if __name__ == '__main__':
-    print("🚀 Starting CDP Agent Metrics Generator...")
+    print("🚀 Starting FireGlobe Agent Metrics Generator...")
     print(f"✅ Agent address: {agent.address}")
     print(f"📡 Backend URL: {BACKEND_URL}")
     print("🧠 Powered by ASI:One AI and MeTTa Knowledge Graph")
@@ -885,3 +885,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n🛑 Shutting down CDP Agent Metrics Generator...")
         print("✅ Agent stopped.")
+
