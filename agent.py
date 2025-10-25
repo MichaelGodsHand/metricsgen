@@ -552,27 +552,63 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
 
 
 def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate comprehensive metrics for a conversation."""
+    """Generate comprehensive metrics for a conversation or test run."""
     
     print(f"\n{'='*80}")
     print(f"🔍 GENERATING COMPREHENSIVE METRICS")
     print(f"{'='*80}\n")
     
-    # Calculate all metric categories
+    # Check if this is a comprehensive test run or single conversation
+    if 'conversations' in conversation_data and 'all_transactions' in conversation_data:
+        # This is a comprehensive test run - process all conversations
+        print(f"📊 Processing comprehensive test run with {conversation_data.get('total_conversations', 0)} conversations")
+        print(f"📊 Personalities: {conversation_data.get('personalities', [])}")
+        print(f"📊 Total transactions: {conversation_data.get('total_transactions', 0)}")
+        
+        # Combine all conversations and transactions for comprehensive analysis
+        all_messages = []
+        all_transactions = conversation_data.get('all_transactions', [])
+        
+        for conv in conversation_data.get('conversations', []):
+            all_messages.extend(conv.get('messages', []))
+            # Also add individual conversation transactions
+            all_transactions.extend(conv.get('transactions', []))
+        
+        # Create combined data structure for metrics calculation
+        combined_data = {
+            'messages': all_messages,
+            'transactions': all_transactions,
+            'conversation_id': conversation_data.get('conversation_id'),
+            'personality_name': f"Multi-Personality Test Run ({len(conversation_data.get('personalities', []))} personalities)",
+            'test_run_id': conversation_data.get('test_run_id'),
+            'test_run_timestamp': conversation_data.get('test_run_timestamp'),
+            'personalities': conversation_data.get('personalities', []),
+            'total_conversations': conversation_data.get('total_conversations', 0),
+            'total_transactions': conversation_data.get('total_transactions', 0)
+        }
+        
+        print(f"📊 Combined analysis: {len(all_messages)} messages, {len(all_transactions)} transactions")
+        
+    else:
+        # This is a single conversation - use existing logic
+        print(f"📊 Processing single conversation: {conversation_data.get('conversation_id')}")
+        combined_data = conversation_data
+    
+    # Calculate all metric categories using combined data
     print("📊 Calculating capability metrics...")
-    capability_metrics = calculate_capability_metrics(conversation_data)
+    capability_metrics = calculate_capability_metrics(combined_data)
     
     print("⚡ Calculating efficiency metrics...")
-    efficiency_metrics = calculate_efficiency_metrics(conversation_data)
+    efficiency_metrics = calculate_efficiency_metrics(combined_data)
     
     print("🛡️  Calculating reliability metrics...")
-    reliability_metrics = calculate_reliability_metrics(conversation_data)
+    reliability_metrics = calculate_reliability_metrics(combined_data)
     
     print("💬 Calculating interaction metrics...")
-    interaction_metrics = calculate_interaction_metrics(conversation_data)
+    interaction_metrics = calculate_interaction_metrics(combined_data)
     
     print("🏦 Calculating DeFi reasoning metrics...")
-    defi_metrics = calculate_defi_metrics(conversation_data)
+    defi_metrics = calculate_defi_metrics(combined_data)
     
     print("🎯 Calculating aggregate scores...")
     aggregate_scores = calculate_aggregate_scores(
@@ -584,7 +620,7 @@ def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[st
     )
     
     print("📝 Generating summary insights...")
-    summary = generate_summary_insights(conversation_data, aggregate_scores)
+    summary = generate_summary_insights(combined_data, aggregate_scores)
     
     print("🔧 Identifying improvement areas with AI analysis...")
     improvements = generate_improvement_areas(
@@ -593,15 +629,21 @@ def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[st
         reliability_metrics,
         interaction_metrics,
         defi_metrics,
-        conversation_data,
+        combined_data,
         llm
     )
     
+    # Create metrics structure
     metrics = {
-        "test_id": conversation_data.get('conversation_id'),
-        "personality_name": conversation_data.get('personality_name'),
+        "test_id": combined_data.get('conversation_id'),
+        "personality_name": combined_data.get('personality_name'),
         "network": "Base Sepolia",
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "test_run_id": combined_data.get('test_run_id'),
+        "test_run_timestamp": combined_data.get('test_run_timestamp'),
+        "personalities": combined_data.get('personalities', []),
+        "total_conversations": combined_data.get('total_conversations', 1),
+        "total_transactions": combined_data.get('total_transactions', 0),
         "metrics": {
             "capability": capability_metrics,
             "efficiency": efficiency_metrics,
@@ -615,7 +657,10 @@ def generate_comprehensive_metrics(conversation_data: Dict[str, Any]) -> Dict[st
     }
     
     print(f"\n✅ Metrics generation complete!")
-    print(f"📊 Final Performance Index: {aggregate_scores['final_performance_index']}/100\n")
+    print(f"📊 Final Performance Index: {aggregate_scores['final_performance_index']}/100")
+    if 'personalities' in combined_data:
+        print(f"📊 Processed {len(combined_data['personalities'])} personalities")
+    print()
     
     return metrics
 
@@ -624,14 +669,23 @@ def display_metrics_in_terminal(metrics: Dict[str, Any]):
     """Display metrics in a beautiful terminal format."""
     
     print(f"\n{'='*80}")
-    print(f"🎯 CDP AGENT PERFORMANCE METRICS")
+    print(f"🎯 FIREGLOBE AGENT PERFORMANCE METRICS")
     print(f"{'='*80}\n")
     
     # Header
     print(f"🆔 Test ID: {metrics['test_id']}")
     print(f"👤 Personality: {metrics['personality_name']}")
     print(f"🌐 Network: {metrics['network']}")
-    print(f"⏰ Generated: {metrics['timestamp']}\n")
+    print(f"⏰ Generated: {metrics['timestamp']}")
+    
+    # Show comprehensive test run info if available
+    if 'test_run_id' in metrics and metrics['test_run_id']:
+        print(f"🏃 Test Run ID: {metrics['test_run_id']}")
+        print(f"📊 Total Conversations: {metrics.get('total_conversations', 1)}")
+        print(f"📊 Total Transactions: {metrics.get('total_transactions', 0)}")
+        if 'personalities' in metrics and metrics['personalities']:
+            print(f"👥 Personalities: {', '.join(metrics['personalities'])}")
+    print()
     
     print(f"{'='*80}")
     print(f"📊 AGGREGATE SCORES")
